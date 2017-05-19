@@ -1,0 +1,1 @@
+twisted.web.server.Request now ensures at least some data is written to the response until the producer is empty, if a producer is attached.  This prevents stalls when using accept-encoding gzip on very compressible files.

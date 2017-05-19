@@ -22,7 +22,9 @@ from twisted.web import server, resource
 from twisted.web import iweb, http, error
 
 from twisted.web.test.requesthelper import DummyChannel, DummyRequest
-from twisted.web.static import Data
+from twisted.web.static import Data, File
+from twisted.internet.defer import inlineCallbacks
+from twisted.web.client import readBody
 
 
 class ResourceTests(unittest.TestCase):
@@ -740,6 +742,36 @@ class GzipEncoderTests(unittest.TestCase):
             staticResource, [server.GzipEncoderFactory()])
         self.channel.site.resource.putChild(b"foo", wrapped)
 
+    @inlineCallbacks
+    def test_veryCompressibleData(self):
+        from twisted.web.client import Agent, readBody
+        from twisted.web.http_headers import Headers
+        from twisted.web.resource import Resource
+        with open('veryCompressibleData.txt','wb') as f:
+            f.write(b"A"*200000)
+        r = File('veryCompressibleData.txt')
+        wrapped = resource.EncodingResourceWrapper(
+            r, [server.GzipEncoderFactory()])
+        site = server.Site(Resource())
+        site.resource.putChild(b"bar", wrapped)
+        port=reactor.listenTCP(54879, site)        
+
+        agent = Agent(reactor)
+
+        try:
+            resp = yield  agent.request(
+                b'GET',
+                b'http://localhost:54879/bar',
+                Headers({'User-Agent': ['Twisted Web Client Example'],
+                         "Accept-Encoding": [b"gzip"]}),
+                None)
+            body = yield readBody(resp)
+        except Exception as e:
+            print(e)    
+
+        self.assertEqual(b"A"*200000,
+                          zlib.decompress(body, 16 + zlib.MAX_WBITS))
+        port.stopListening()
 
     def test_interfaces(self):
         """

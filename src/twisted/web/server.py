@@ -211,6 +211,9 @@ class Request(Copyable, http.Request, components.Componentized):
         if not self._inFakeHead:
             if self._encoder:
                 data = self._encoder.encode(data)
+#             if len(data) == 0 and self.producer:
+#                 self.producer.resumeProducing()
+#             else:
             http.Request.write(self, data)
 
 
